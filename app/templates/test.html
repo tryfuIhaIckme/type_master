@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* Стиль в духе TypeMonkey */
+    #text-display {
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 1.5rem;
+        line-height: 2rem;
+        letter-spacing: 0.1rem;
+        color: #6c757d; /* Цвет еще не напечатанного текста */
+        user-select: none;
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        position: relative;
+    }
+    .char-correct { color: #28a745; } /* Зеленый для правильных */
+    .char-incorrect { color: #dc3545; background: #f8d7da; } /* Красный для ошибок */
+    .char-current { border-left: 2px solid #007bff; animation: blink 1s infinite; } /* Курсор */
+    
+    @keyframes blink { 50% { border-color: transparent; } }
+    
+    #typing-input {
+        position: absolute;
+        opacity: 0; /* Прячем реальное поле ввода, но оставляем его рабочим */
+        z-index: -1;
+    }
+</style>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10 shadow p-4 bg-white rounded">
+            <h2 class="text-center mb-4">{{ text.title }}</h2>
+            
+            <!-- Статистика в реальном времени -->
+            <div class="d-flex justify-content-around mb-4 fw-bold text-primary">
+                <div>WPM: <span id="wpm">0</span></div>
+                <div>Точность: <span id="accuracy">100</span>%</div>
+                <div>Ошибки: <span id="errors">0</span></div>
+                <div>Время: <span id="timer">0</span>с</div>
+            </div>
+
+            <!-- Контейнер с текстом -->
+            <div id="text-display" onclick="focusInput()">
+                <!-- Сюда JS вставит символы -->
+            </div>
+
+            <!-- Скрытое поле ввода -->
+            <input type="text" id="typing-input" autocomplete="off">
+            
+            <div class="text-center mt-4">
+                <small class="text-muted">Кликните по тексту, чтобы начать печатать.</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const originalText = {{ text.content | tojson }};
+const textId = {{ text.id }};
+let startTime, timerInterval;
+let errorsCount = 0;
+let isFinished = false;
+
+const display = document.getElementById('text-display');
+const inputField = document.getElementById('typing-input');
+const wpmDisplay = document.getElementById('wpm');
+const accDisplay = document.getElementById('accuracy');
+const errDisplay = document.getElementById('errors');
+const timerDisplay = document.getElementById('timer');
+
+// Инициализация текста (разбиваем на спаны по символам)
+function initText() {
+    display.innerHTML = originalText.split('').map((char, index) => {
+        return `<span id="char-${index}">${char}</span>`;
+    }).join('');
+    document.getElementById('char-0').classList.add('char-current');
+}
+
+// Фокус на поле ввода при клике по области
+function focusInput() {
+    inputField.focus();
+}
+
+inputField.addEventListener('input', () => {
+    if (isFinished) return;
+
+    if (!startTime) {
+        startTime = new Date();
+        startTimer();
+    }
+
+    const typedText = inputField.value;
+    const currentIndex = typedText.length - 1;
+
+    // Считаем ошибки и подсвечиваем символы
+    errorsCount = 0;
+    for (let i = 0; i < originalText.length; i++) {
+        const charElement = document.getElementById(`char-${i}`);
+        charElement.classList.remove('char-correct', 'char-incorrect', 'char-current');
+
+        if (i < typedText.length) {
+            if (typedText[i] === originalText[i]) {
+                charElement.classList.add('char-correct');
+            } else {
+                charElement.classList.add('char-incorrect');
+                errorsCount++;
+            }
+        } else if (i === typedText.length) {
+            charElement.classList.add('char-current');
+        }
+    }
+
+    // Обновляем статистику в реальном времени
+    updateStats(typedText.length);
+
+    // Если напечатали всё
+    if (typedText.length >= originalText.length) {
+        finishTest();
+    }
+});
+
+function startTimer() {
+    timerInterval = setInterval(() => {
+        const now = new Date();
+        const diff = Math.floor((now - startTime) / 1000);
+        timerDisplay.innerText = diff;
+        updateStats(inputField.value.length);
+    }, 1000);
+}
+
+function updateStats(charCount) {
+    if (!startTime) return;
+    const now = new Date();
+    const minutes = (now - startTime) / 60000;
+    
+    // Формула WPM: (символы / 5) / минуты
+    const wpm = Math.round((charCount / 5) / minutes) || 0;
+    const accuracy = Math.round(((charCount - errorsCount) / charCount) * 100) || 100;
+
+    wpmDisplay.innerText = wpm;
+    accDisplay.innerText = accuracy;
+    errDisplay.innerText = errorsCount;
+}
+
+function finishTest() {
+    isFinished = true;
+    clearInterval(timerInterval);
+    const wpm = parseInt(wpmDisplay.innerText);
+    const accuracy = parseInt(accDisplay.innerText);
+
+    // Отправляем данные на сервер через API
+    fetch('/save_result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            text_id: textId,
+            wpm: wpm,
+            accuracy: accuracy,
+            errors: errorsCount
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(`Тест завершен! \nСкорость: ${wpm} WPM \nТочность: ${accuracy}%`);
+        window.location.href = "{{ url_for('profile') }}";
+    })
+    .catch(err => console.error('Ошибка сохранения:', err));
+}
+
+window.onload = initText;
+</script>
+{% endblock %}

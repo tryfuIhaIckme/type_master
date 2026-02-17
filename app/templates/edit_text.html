@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="col-md-8 offset-md-2">
+    <h3>Add New Text</h3>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+            {{ form.title.label(class="form-label") }}
+            {{ form.title(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.content.label(class="form-label") }}
+            {{ form.content(class="form-control", rows="10") }}
+        </div>
+        <div class="row">
+            <div class="col">{{ form.language.label }}{{ form.language(class="form-control") }}</div>
+            <div class="col">{{ form.difficulty.label }}{{ form.difficulty(class="form-control") }}</div>
+        </div>
+        {{ form.submit(class="btn btn-success mt-3") }}
+    </form>
+</div>
+{% endblock %}

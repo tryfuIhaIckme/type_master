@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card p-3 mb-4 shadow-sm bg-primary text-white">
+            <h4>Моя статистика</h4>
+            <hr>
+            <p>Тестов пройдено: <strong>{{ stats.total_tests }}</strong></p>
+            <p>Средняя скорость: <strong>{{ stats.avg_wpm|round(1) if stats.avg_wpm else 0 }} WPM</strong></p>
+            <p>Лучший результат: <strong>{{ stats.best_wpm if stats.best_wpm else 0 }} WPM</strong></p>
+            <a href="{{ url_for('export_results') }}" class="btn btn-light btn-sm">Скачать результаты (CSV)</a>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <h3>История последних тестов</h3>
+        <table class="table table-striped border">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>WPM</th>
+                    <th>Точность</th>
+                    <th>Ошибки</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in results|reverse %}
+                <tr>
+                    <td>{{ r.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>{{ r.wpm }}</td>
+                    <td>{{ r.accuracy }}%</td>
+                    <td>{{ r.errors_count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

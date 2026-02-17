@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="p-5 mb-4 bg-light rounded-3">
+        <div class="container-fluid py-5 text-center">
+            <h1 class="display-5 fw-bold">Добро пожаловать в TypeMaster!</h1>
+            <p class="fs-4">Проверь свою скорость печати и улучшай результаты каждый день.</p>
+            
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('texts_list') }}" class="btn btn-primary btn-lg">Начать тест</a>
+            {% else %}
+                <a href="{{ url_for('register') }}" class="btn btn-success btn-lg">Зарегистрироваться</a>
+                <a href="{{ url_for('login') }}" class="btn btn-outline-secondary btn-lg">Войти</a>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
