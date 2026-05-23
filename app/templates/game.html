@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    #game-container {
+        width: 100%;
+        height: 500px;
+        background: #1a1a1a;
+        position: relative;
+        overflow: hidden;
+        border-radius: 12px;
+        border: 4px solid #333;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .word {
+        position: absolute;
+        color: #00ffcc;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 1.5rem;
+        font-weight: bold;
+        text-shadow: 0 0 5px #00ffcc;
+        white-space: nowrap;
+        transition: transform 0.1s linear;
+    }
+    #game-input {
+        width: 100%;
+        font-size: 2rem;
+        padding: 15px;
+        border: none;
+        background: #333;
+        color: white;
+        text-align: center;
+        border-radius: 0 0 12px 12px;
+        outline: none;
+        font-family: 'Courier New', Courier, monospace;
+    }
+    #game-stats {
+        background: #222;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 12px 12px 0 0;
+        display: flex;
+        justify-content: space-between;
+        font-weight: bold;
+    }
+    .overlay {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        z-index: 10;
+        text-align: center;
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div id="game-stats">
+                <div>Счет: <span id="score">0</span></div>
+                <div>Жизни: <span id="lives">3</span></div>
+                <div>Время: <span id="game-timer">60</span>с</div>
+            </div>
+            
+            <div id="game-container">
+                <div id="start-screen" class="overlay">
+                    <h2 class="mb-4">Падающие слова</h2>
+                    <div class="mb-3 w-50">
+                        <label class="form-label">Скорость (1-10)</label>
+                        <input type="range" class="form-range" id="speed-range" min="1" max="10" value="3">
+                        <label class="form-label">Время игры (сек)</label>
+                        <input type="number" class="form-control mb-3" id="duration-input" value="60">
+                        <label class="form-label">Свой список слов (через пробел/перенос)</label>
+                        <textarea class="form-control mb-3" id="custom-words" rows="3" placeholder="Оставьте пустым для стандартных слов"></textarea>
+                    </div>
+                    <button class="btn btn-primary btn-lg px-5" onclick="startGame()">Начать игру</button>
+                </div>
+                
+                <div id="game-over-screen" class="overlay d-none">
+                    <h2 class="text-danger mb-3">ИГРА ОКОНЧЕНА!</h2>
+                    <p class="h4 mb-4">Ваш счет: <span id="final-score">0</span></p>
+                    <button class="btn btn-outline-light px-5" onclick="resetGame()">Попробовать снова</button>
+                </div>
+            </div>
+            <input type="text" id="game-input" autocomplete="off" placeholder="Пиши слова здесь..." disabled>
+        </div>
+    </div>
+</div>
+
+<script>
+    let defaultWords = [];
+    fetch('/static/words.txt')
+        .then(r => r.text())
+        .then(t => defaultWords = t.split('\n').map(w => w.trim()).filter(w => w));
+
+    // На случай если static не доступен напрямую, используем вшитые слова
+    if (defaultWords.length === 0) {
+        defaultWords = "яблоко банан вишня дракон орел сокол виноград мед остров джунгли рыцарь лимон дыня природа океан планета река серебро тигр".split(' ');
+    }
+
+    let gameActive = false;
+    let words = [];
+    let activeWords = [];
+    let score = 0;
+    let lives = 3;
+    let timeLeft = 60;
+    let speed = 2;
+    let spawnInterval, gameInterval, timerInterval;
+
+    const container = document.getElementById('game-container');
+    const input = document.getElementById('game-input');
+    const scoreEl = document.getElementById('score');
+    const livesEl = document.getElementById('lives');
+    const timerEl = document.getElementById('game-timer');
+    const startScreen = document.getElementById('start-screen');
+    const gameOverScreen = document.getElementById('game-over-screen');
+
+    function startGame() {
+        // Настройка
+        const customWords = document.getElementById('custom-words').value;
+        words = customWords ? customWords.split(/\s+/).filter(w => w) : defaultWords;
+        speed = parseInt(document.getElementById('speed-range').value) * 0.5;
+        timeLeft = parseInt(document.getElementById('duration-input').value) || 60;
+        
+        // Сброс
+        score = 0;
+        lives = 3;
+        activeWords = [];
+        scoreEl.innerText = score;
+        livesEl.innerText = lives;
+        timerEl.innerText = timeLeft;
+        
+        startScreen.classList.add('d-none');
+        gameOverScreen.classList.add('d-none');
+        input.disabled = false;
+        input.value = '';
+        input.focus();
+        gameActive = true;
+
+        // Таймеры
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            timerEl.innerText = timeLeft;
+            if (timeLeft <= 0) endGame();
+        }, 1000);
+
+        spawnInterval = setInterval(spawnWord, 1500 - (speed * 100));
+        gameInterval = requestAnimationFrame(updateGame);
+    }
+
+    function spawnWord() {
+        if (!gameActive) return;
+        const wordText = words[Math.floor(Math.random() * words.length)];
+        const wordEl = document.createElement('div');
+        wordEl.className = 'word';
+        wordEl.innerText = wordText;
+        wordEl.style.left = Math.random() * (container.offsetWidth - 100) + 'px';
+        wordEl.style.top = '-30px';
+        container.appendChild(wordEl);
+        
+        activeWords.push({
+            el: wordEl,
+            text: wordText,
+            top: -30
+        });
+    }
+
+    function updateGame() {
+        if (!gameActive) return;
+
+        for (let i = activeWords.length - 1; i >= 0; i--) {
+            const w = activeWords[i];
+            w.top += speed;
+            w.el.style.top = w.top + 'px';
+
+            if (w.top > container.offsetHeight) {
+                container.removeChild(w.el);
+                activeWords.splice(i, 1);
+                lives--;
+                livesEl.innerText = lives;
+                if (lives <= 0) endGame();
+            }
+        }
+        gameInterval = requestAnimationFrame(updateGame);
+    }
+
+    input.addEventListener('input', () => {
+        const val = input.value.trim().toLowerCase();
+        const index = activeWords.findIndex(w => w.text.toLowerCase() === val);
+        
+        if (index !== -1) {
+            container.removeChild(activeWords[index].el);
+            activeWords.splice(index, 1);
+            score += 10;
+            scoreEl.innerText = score;
+            input.value = '';
+            
+            // Маленький эффект вспышки
+            input.style.background = '#004d00';
+            setTimeout(() => input.style.background = '#333', 100);
+        }
+    });
+
+    function endGame() {
+        gameActive = false;
+        clearInterval(spawnInterval);
+        clearInterval(timerInterval);
+        cancelAnimationFrame(gameInterval);
+        
+        input.disabled = true;
+        gameOverScreen.classList.remove('d-none');
+        document.getElementById('final-score').innerText = score;
+        
+        // Очистка оставшихся слов
+        activeWords.forEach(w => container.removeChild(w.el));
+        activeWords = [];
+    }
+
+    function resetGame() {
+        gameOverScreen.classList.add('d-none');
+        startScreen.classList.remove('d-none');
+    }
+</script>
+{% endblock %}

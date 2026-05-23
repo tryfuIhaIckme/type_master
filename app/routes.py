@@ -122,6 +122,11 @@ def profile():
 
     return render_template('profile.html', results=user_results, stats=stats)
 
+@app.route("/game")
+@login_required
+def game():
+    return render_template('game.html', title='Игра "Падающие слова"')
+
 @app.route("/export_results")
 @login_required
 def export_results():
