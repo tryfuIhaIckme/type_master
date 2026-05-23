@@ -2,55 +2,94 @@
 
 {% block content %}
 <style>
-    /* Стиль в духе TypeMonkey */
     #text-display {
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 1.5rem;
-        line-height: 2rem;
-        letter-spacing: 0.1rem;
-        color: #6c757d; /* Цвет еще не напечатанного текста */
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 1.6rem;
+        line-height: 2.4rem;
+        letter-spacing: 0.05rem;
+        color: #555; /* Еще не напечатано */
         user-select: none;
-        background: #fff;
-        padding: 20px;
-        border-radius: 8px;
+        background: transparent;
+        padding: 30px;
+        border-radius: 15px;
         position: relative;
+        min-height: 200px;
     }
-    .char-correct { color: #28a745; } /* Зеленый для правильных */
-    .char-incorrect { color: #dc3545; background: #f8d7da; } /* Красный для ошибок */
-    .char-current { border-left: 2px solid #007bff; animation: blink 1s infinite; } /* Курсор */
+    .char-correct { color: #e0e0e0; } /* Светлый для правильных */
+    .char-incorrect { color: #e74c3c; background: rgba(231, 76, 60, 0.1); border-radius: 4px; } 
+    .char-current { 
+        border-bottom: 3px solid var(--accent);
+        animation: blink 1s infinite;
+    }
     
     @keyframes blink { 50% { border-color: transparent; } }
     
     #typing-input {
         position: absolute;
-        opacity: 0; /* Прячем реальное поле ввода, но оставляем его рабочим */
+        opacity: 0;
         z-index: -1;
+    }
+
+    .stat-box {
+        background: #1a1a1a;
+        padding: 15px 25px;
+        border-radius: 15px;
+        border: 1px solid var(--border);
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--accent);
+        display: block;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-muted);
     }
 </style>
 
 <div class="container mt-5">
     <div class="row justify-content-center">
-        <div class="col-md-10 shadow p-4 bg-white rounded">
-            <h2 class="text-center mb-4">{{ text.title }}</h2>
-            
-            <!-- Статистика в реальном времени -->
-            <div class="d-flex justify-content-around mb-4 fw-bold text-primary">
-                <div>WPM: <span id="wpm">0</span></div>
-                <div>Точность: <span id="accuracy">100</span>%</div>
-                <div>Ошибки: <span id="errors">0</span></div>
-                <div>Время: <span id="timer">0</span>с</div>
-            </div>
+        <div class="col-md-11">
+            <div class="card p-5 border-0 shadow-lg">
+                <h2 class="text-center mb-5 opacity-75">{{ text.title }}</h2>
+                
+                <!-- Статистика -->
+                <div class="d-flex justify-content-between mb-5">
+                    <div class="stat-box">
+                        <span class="stat-label">WPM</span>
+                        <span class="stat-value" id="wpm">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Accuracy</span>
+                        <span class="stat-value"><span id="accuracy">100</span>%</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Errors</span>
+                        <span class="stat-value" id="errors">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Time</span>
+                        <span class="stat-value"><span id="timer">0</span>s</span>
+                    </div>
+                </div>
 
-            <!-- Контейнер с текстом -->
-            <div id="text-display" onclick="focusInput()">
-                <!-- Сюда JS вставит символы -->
-            </div>
+                <!-- Контейнер с текстом -->
+                <div id="text-display" onclick="focusInput()">
+                    <!-- Сюда JS вставит символы -->
+                </div>
 
-            <!-- Скрытое поле ввода -->
-            <input type="text" id="typing-input" autocomplete="off">
-            
-            <div class="text-center mt-4">
-                <small class="text-muted">Кликните по тексту, чтобы начать печатать.</small>
+                <!-- Скрытое поле ввода -->
+                <input type="text" id="typing-input" autocomplete="off">
+                
+                <div class="text-center mt-5">
+                    <p class="text-muted small">Начните печатать, чтобы запустить таймер. <br> <span class="badge border border-secondary mt-2">Tab для перезапуска (скоро)</span></p>
+                </div>
             </div>
         </div>
     </div>
@@ -58,7 +97,11 @@
 
 <script>
 const originalText = {{ text.content | tojson }}.trim().replace(/\s+/g, ' ');
-const textId = {{ text.id }};
+const textId = {{ text.id | tojson if text.id is defined else 'null' }};
+const mode = {{ text.mode | default('text') | tojson }};
+const language = {{ text.language | default('ru') | tojson }};
+const difficulty = {{ text.difficulty | default('medium') | tojson }};
+
 let startTime, timerInterval;
 let errorsCount = 0;
 let isFinished = false;
@@ -158,7 +201,10 @@ function finishTest() {
             text_id: textId,
             wpm: wpm,
             accuracy: accuracy,
-            errors: errorsCount
+            errors: errorsCount,
+            mode: mode,
+            language: language,
+            difficulty: difficulty
         })
     })
     .then(response => response.json())

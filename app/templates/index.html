@@ -1,16 +1,60 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="p-5 mb-4 bg-light rounded-3">
-        <div class="container-fluid py-5 text-center">
-            <h1 class="display-5 fw-bold">Добро пожаловать в TypeMaster!</h1>
-            <p class="fs-4">Проверь свою скорость печати и улучшай результаты каждый день.</p>
-            
-            {% if current_user.is_authenticated %}
-                <a href="{{ url_for('texts_list') }}" class="btn btn-primary btn-lg">Начать тест</a>
-            {% else %}
-                <a href="{{ url_for('register') }}" class="btn btn-success btn-lg">Зарегистрироваться</a>
-                <a href="{{ url_for('login') }}" class="btn btn-outline-secondary btn-lg">Войти</a>
-            {% endif %}
-        </div>
+    <div class="p-5 mb-4 text-center">
+        <h1 class="display-5 fw-bold" style="color: var(--accent);">TypeMaster</h1>
+        <p class="fs-4 text-muted">Совершенствуйте свою печать в уютной атмосфере.</p>
+        
+        {% if current_user.is_authenticated %}
+            <div class="row mt-5">
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100 p-4 border-0 shadow-lg">
+                        <div class="card-body">
+                            <h3 class="mb-3">Случайные слова</h3>
+                            <p class="text-muted small mb-4">Быстрая разминка на наборе слов</p>
+                            <form action="{{ url_for('random_test') }}" method="GET">
+                                <div class="mb-3 text-start">
+                                    <label class="form-label small fw-bold opacity-75">Язык</label>
+                                    <select name="lang" class="form-select">
+                                        <option value="ru">Русский</option>
+                                        <option value="en">English</option>
+                                    </select>
+                                </div>
+                                <div class="mb-4 text-start">
+                                    <label class="form-label small fw-bold opacity-75">Сложность</label>
+                                    <select name="diff" class="form-select">
+                                        <option value="easy">Easy (10 слов)</option>
+                                        <option value="medium" selected>Medium (20 слов)</option>
+                                        <option value="hard">Hard (40 слов)</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100 py-3">Начать тренировку</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100 p-4 border-0 shadow-lg d-flex flex-column">
+                        <div class="card-body d-flex flex-column justify-content-center">
+                            <h3 class="mb-3">Библиотека текстов</h3>
+                            <p class="text-muted small mb-5">Полноценные тексты и рассказы для глубокой практики</p>
+                            <a href="{{ url_for('texts_list') }}" class="btn btn-outline-primary w-100 py-3 mt-auto">Выбрать текст</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4">
+                <a href="{{ url_for('scoreboard') }}" class="btn btn-dark btn-lg px-5 shadow-sm" style="border: 1px solid var(--border); border-radius: 12px;">
+                    <span style="color: var(--accent);">🏆</span> Таблица лидеров
+                </a>
+            </div>
+        {% else %}
+            <div class="mt-5 p-5 card border-0 shadow-lg">
+                <h4 class="mb-4">Присоединяйтесь к сообществу</h4>
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg px-5">Создать аккаунт</a>
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg px-5">Войти</a>
+                </div>
+            </div>
+        {% endif %}
     </div>
 {% endblock %}

@@ -19,12 +19,22 @@ def register():
         return redirect(url_for('index'))
     form = RegistrationForm()
     if form.validate_on_submit():
+        user_exists = User.query.filter((User.username == form.username.data) | (User.email == form.email.data)).first()
+        if user_exists:
+            flash('Пользователь с таким именем или email уже существует.', 'danger')
+            return render_template('register.html', title='Регистрация', form=form)
+        
         hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
         user = User(username=form.username.data, email=form.email.data, password_hash=hashed_password)
         db.session.add(user)
-        db.session.commit()
-        flash('Аккаунт создан! Теперь вы можете войти.', 'success')
-        return redirect(url_for('login'))
+        try:
+            db.session.commit()
+            flash('Аккаунт создан! Теперь вы можете войти.', 'success')
+            return redirect(url_for('login'))
+        except:
+            db.session.rollback()
+            flash('Произошла ошибка при регистрации. Попробуйте еще раз.', 'danger')
+            
     return render_template('register.html', title='Регистрация', form=form)
 
 @app.route("/login", methods=['GET', 'POST'])
@@ -94,20 +104,58 @@ def typing_test(text_id):
 def save_result():
     data = request.get_json()
     # 1. Создаем сессию теста
-    session = TestSession(user_id=current_user.id, text_id=data['text_id'])
+    session = TestSession(user_id=current_user.id, text_id=data.get('text_id'))
     db.session.add(session)
-    db.session.flush() # Получаем ID сессии до фиксации в БД
+    db.session.flush() 
     
     # 2. Создаем результат
     result = Result(
         session_id=session.id,
         wpm=data['wpm'],
         accuracy=data['accuracy'],
-        errors_count=data['errors']
+        errors_count=data['errors'],
+        mode=data.get('mode', 'text'),
+        language=data.get('language', 'ru'),
+        difficulty=data.get('difficulty', 'easy')
     )
     db.session.add(result)
     db.session.commit()
     return json.dumps({'status': 'success'}), 200
+
+@app.route("/random_test")
+@login_required
+def random_test():
+    lang = request.args.get('lang', 'ru')
+    diff = request.args.get('diff', 'medium')
+    
+    filename = 'words_ru.txt' if lang == 'ru' else 'words_en.txt'
+    try:
+        with open(f'app/static/{filename}', 'r', encoding='utf-8') as f:
+            all_words = f.read().splitlines()
+    except:
+        all_words = ["error", "loading", "words"]
+
+    import random
+    count = 10 if diff == 'easy' else (20 if diff == 'medium' else 40)
+    selected_words = random.sample(all_words, min(len(all_words), count))
+    content = " ".join(selected_words)
+    
+    # Создаем виртуальный объект текста для шаблона
+    text_obj = {
+        'id': None,
+        'title': f'Random Words ({lang}, {diff})',
+        'content': content,
+        'language': lang,
+        'difficulty': diff,
+        'mode': 'random'
+    }
+    return render_template('test.html', title='Случайные слова', text=text_obj)
+
+@app.route("/scoreboard")
+@login_required
+def scoreboard():
+    results = Result.query.join(TestSession).join(User).order_by(Result.wpm.desc()).limit(50).all()
+    return render_template('scoreboard.html', title='Таблица лидеров', results=results)
 
 @app.route("/profile")
 @login_required

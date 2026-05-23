@@ -33,7 +33,7 @@ class Text(db.Model):
 class TestSession(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    text_id = db.Column(db.Integer, db.ForeignKey('text.id'), nullable=False)
+    text_id = db.Column(db.Integer, db.ForeignKey('text.id'), nullable=True) # Опционально для рандомных слов
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # связь 1-к-1 с результатом
@@ -45,4 +45,7 @@ class Result(db.Model):
     wpm = db.Column(db.Integer, nullable=False)
     accuracy = db.Column(db.Float, nullable=False)
     errors_count = db.Column(db.Integer)
+    mode = db.Column(db.String(20), default='text') # 'text' или 'random'
+    language = db.Column(db.String(10), default='ru')
+    difficulty = db.Column(db.String(20), default='easy')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
