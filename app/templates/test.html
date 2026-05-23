@@ -57,7 +57,7 @@
 </div>
 
 <script>
-const originalText = {{ text.content | tojson }};
+const originalText = {{ text.content | tojson }}.trim().replace(/\s+/g, ' ');
 const textId = {{ text.id }};
 let startTime, timerInterval;
 let errorsCount = 0;

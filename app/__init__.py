@@ -17,3 +17,22 @@ login_manager.login_message_category = 'info'
 migrate = Migrate(app, db)
 
 from app import routes, models
+
+# Создание таблиц и админа при запуске
+with app.app_context():
+    db.create_all()
+    
+    # Сбрасываем флаг админа у всех, кроме adminka
+    models.User.query.filter(models.User.username != 'adminka').update({models.User.is_admin: False})
+    
+    admin = models.User.query.filter_by(username='adminka').first()
+    if not admin:
+        hashed_password = bcrypt.generate_password_hash('123').decode('utf-8')
+        admin = models.User(username='adminka', email='admin@typemaster.com', 
+                            password_hash=hashed_password, is_admin=True)
+        db.session.add(admin)
+    else:
+        admin.is_admin = True
+        admin.password_hash = bcrypt.generate_password_hash('123').decode('utf-8')
+    
+    db.session.commit()
