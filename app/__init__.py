@@ -4,9 +4,11 @@ from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
 from flask_migrate import Migrate
 
+import os
+
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'dev-key-123'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-123-replace-this-in-prod')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///site.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -22,17 +24,25 @@ from app import routes, models
 with app.app_context():
     db.create_all()
     
-    # Сбрасываем флаг админа у всех, кроме adminka
-    models.User.query.filter(models.User.username != 'adminka').update({models.User.is_admin: False})
+    # Сбрасываем флаг админа у всех, кроме nikolaev
+    models.User.query.filter(models.User.username != 'nikolaev').update({models.User.is_admin: False})
     
-    admin = models.User.query.filter_by(username='adminka').first()
+    # Ищем пользователя по имени ИЛИ по email, чтобы избежать конфликтов уникальности
+    admin = models.User.query.filter(
+        (models.User.username == 'nikolaev') | 
+        (models.User.email == 'admin@typemaster.com')
+    ).first()
+
     if not admin:
-        hashed_password = bcrypt.generate_password_hash('123').decode('utf-8')
-        admin = models.User(username='adminka', email='admin@typemaster.com', 
+        hashed_password = bcrypt.generate_password_hash('nikolaev').decode('utf-8')
+        admin = models.User(username='nikolaev', email='admin@typemaster.com', 
                             password_hash=hashed_password, is_admin=True)
         db.session.add(admin)
     else:
+        # Обновляем существующего пользователя до нужных параметров админа
+        admin.username = 'nikolaev'
+        admin.email = 'admin@typemaster.com'
         admin.is_admin = True
-        admin.password_hash = bcrypt.generate_password_hash('123').decode('utf-8')
+        admin.password_hash = bcrypt.generate_password_hash('nikolaev').decode('utf-8')
     
     db.session.commit()
