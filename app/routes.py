@@ -1,5 +1,5 @@
-from flask import render_template, url_for, flash, redirect, request, abort, Response
-from app import app, db, bcrypt
+from flask import render_template, url_for, flash, redirect, request, abort, Response, Blueprint
+from app import db
 from app.forms import RegistrationForm, LoginForm, TextForm, UploadForm
 from app.models import User, Text, TestSession, Result
 from flask_login import login_user, current_user, logout_user, login_required
@@ -8,12 +8,14 @@ from sqlalchemy import func
 from io import StringIO
 import csv
 
-@app.route("/")
-@app.route("/home")
+main = Blueprint('main', __name__)
+
+@main.route("/")
+@main.route("/home")
 def index():
     return render_template('index.html')
 
-@app.route("/register", methods=['GET', 'POST'])
+@main.route("/register", methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
@@ -37,7 +39,7 @@ def register():
             
     return render_template('register.html', title='Регистрация', form=form)
 
-@app.route("/login", methods=['GET', 'POST'])
+@main.route("/login", methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
@@ -51,18 +53,18 @@ def login():
             flash('Ошибка входа. Проверьте email и пароль', 'danger')
     return render_template('login.html', title='Вход', form=form)
 
-@app.route("/logout")
+@main.route("/logout")
 def logout():
     logout_user()
     return redirect(url_for('index'))
 
-@app.route("/texts")
+@main.route("/texts")
 @login_required
 def texts_list():
     texts = Text.query.all()
     return render_template('texts_list.html', texts=texts)
 
-@app.route("/text/new", methods=['GET', 'POST'])
+@main.route("/text/new", methods=['GET', 'POST'])
 @login_required
 def new_text():
     if not current_user.is_admin:
@@ -77,7 +79,7 @@ def new_text():
         return redirect(url_for('texts_list'))
     return render_template('edit_text.html', title='Новый текст', form=form)
 
-@app.route("/text/upload", methods=['GET', 'POST'])
+@main.route("/text/upload", methods=['GET', 'POST'])
 @login_required
 def upload_file():
     if not current_user.is_admin:
@@ -93,13 +95,13 @@ def upload_file():
             return redirect(url_for('texts_list'))
     return render_template('upload.html', form=form)
 
-@app.route("/test/<int:text_id>")
+@main.route("/test/<int:text_id>")
 @login_required
 def typing_test(text_id):
     text = Text.query.get_or_404(text_id)
     return render_template('test.html', title='Тест печати', text=text)
 
-@app.route("/save_result", methods=['POST'])
+@main.route("/save_result", methods=['POST'])
 @login_required
 def save_result():
     data = request.get_json()
@@ -122,7 +124,7 @@ def save_result():
     db.session.commit()
     return json.dumps({'status': 'success'}), 200
 
-@app.route("/random_test")
+@main.route("/random_test")
 @login_required
 def random_test():
     lang = request.args.get('lang', 'ru')
@@ -151,13 +153,13 @@ def random_test():
     }
     return render_template('test.html', title='Случайные слова', text=text_obj)
 
-@app.route("/scoreboard")
+@main.route("/scoreboard")
 @login_required
 def scoreboard():
     results = Result.query.join(TestSession).join(User).order_by(Result.wpm.desc()).limit(50).all()
     return render_template('scoreboard.html', title='Таблица лидеров', results=results)
 
-@app.route("/profile")
+@main.route("/profile")
 @login_required
 def profile():
     user_results = Result.query.join(TestSession).filter(TestSession.user_id == current_user.id).all()
@@ -170,12 +172,12 @@ def profile():
 
     return render_template('profile.html', results=user_results, stats=stats)
 
-@app.route("/game")
+@main.route("/game")
 @login_required
 def game():
     return render_template('game.html', title='Игра "Падающие слова"')
 
-@app.route("/export_results")
+@main.route("/export_results")
 @login_required
 def export_results():
     si = StringIO()

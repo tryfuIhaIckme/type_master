@@ -1,2 +1,35 @@
-DEPLOY.MD
-__pychache__/
+# Virtual environment
+typemaster/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+
+# Instance and database
+instance/
+*.db
+*.sqlite3
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Deployment
+DEPLOY.md
