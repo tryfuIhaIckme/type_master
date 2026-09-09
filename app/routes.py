@@ -1,5 +1,5 @@
-from flask import render_template, url_for, flash, redirect, request, abort, Response, Blueprint
-from app import db
+from flask import render_template, url_for, flash, redirect, request, abort, Response
+from app import app, db, bcrypt
 from app.forms import RegistrationForm, LoginForm, TextForm, UploadForm
 from app.models import User, Text, TestSession, Result
 from flask_login import login_user, current_user, logout_user, login_required
@@ -8,14 +8,12 @@ from sqlalchemy import func
 from io import StringIO
 import csv
 
-main = Blueprint('main', __name__)
-
-@main.route("/")
-@main.route("/home")
+@app.route("/")
+@app.route("/home")
 def index():
     return render_template('index.html')
 
-@main.route("/register", methods=['GET', 'POST'])
+@app.route("/register", methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
@@ -25,7 +23,6 @@ def register():
         if user_exists:
             flash('Пользователь с таким именем или email уже существует.', 'danger')
             return render_template('register.html', title='Регистрация', form=form)
-        
         hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
         user = User(username=form.username.data, email=form.email.data, password_hash=hashed_password)
         db.session.add(user)
@@ -36,10 +33,9 @@ def register():
         except:
             db.session.rollback()
             flash('Произошла ошибка при регистрации. Попробуйте еще раз.', 'danger')
-            
     return render_template('register.html', title='Регистрация', form=form)
 
-@main.route("/login", methods=['GET', 'POST'])
+@app.route("/login", methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
@@ -53,18 +49,18 @@ def login():
             flash('Ошибка входа. Проверьте email и пароль', 'danger')
     return render_template('login.html', title='Вход', form=form)
 
-@main.route("/logout")
+@app.route("/logout")
 def logout():
     logout_user()
     return redirect(url_for('index'))
 
-@main.route("/texts")
+@app.route("/texts")
 @login_required
 def texts_list():
     texts = Text.query.all()
     return render_template('texts_list.html', texts=texts)
 
-@main.route("/text/new", methods=['GET', 'POST'])
+@app.route("/text/new", methods=['GET', 'POST'])
 @login_required
 def new_text():
     if not current_user.is_admin:
@@ -79,7 +75,7 @@ def new_text():
         return redirect(url_for('texts_list'))
     return render_template('edit_text.html', title='Новый текст', form=form)
 
-@main.route("/text/upload", methods=['GET', 'POST'])
+@app.route("/text/upload", methods=['GET', 'POST'])
 @login_required
 def upload_file():
     if not current_user.is_admin:
@@ -95,22 +91,19 @@ def upload_file():
             return redirect(url_for('texts_list'))
     return render_template('upload.html', form=form)
 
-@main.route("/test/<int:text_id>")
+@app.route("/test/<int:text_id>")
 @login_required
 def typing_test(text_id):
     text = Text.query.get_or_404(text_id)
     return render_template('test.html', title='Тест печати', text=text)
 
-@main.route("/save_result", methods=['POST'])
+@app.route("/save_result", methods=['POST'])
 @login_required
 def save_result():
     data = request.get_json()
-    # 1. Создаем сессию теста
     session = TestSession(user_id=current_user.id, text_id=data.get('text_id'))
     db.session.add(session)
     db.session.flush() 
-    
-    # 2. Создаем результат
     result = Result(
         session_id=session.id,
         wpm=data['wpm'],
@@ -124,73 +117,58 @@ def save_result():
     db.session.commit()
     return json.dumps({'status': 'success'}), 200
 
-@main.route("/random_test")
+@app.route("/random_test")
 @login_required
 def random_test():
     lang = request.args.get('lang', 'ru')
     diff = request.args.get('diff', 'medium')
-    
     filename = 'words_ru.txt' if lang == 'ru' else 'words_en.txt'
     try:
         with open(f'app/static/{filename}', 'r', encoding='utf-8') as f:
             all_words = f.read().splitlines()
     except:
         all_words = ["error", "loading", "words"]
-
     import random
     count = 10 if diff == 'easy' else (20 if diff == 'medium' else 40)
     selected_words = random.sample(all_words, min(len(all_words), count))
     content = " ".join(selected_words)
-    
-    # Создаем виртуальный объект текста для шаблона
     text_obj = {
-        'id': None,
-        'title': f'Random Words ({lang}, {diff})',
-        'content': content,
-        'language': lang,
-        'difficulty': diff,
-        'mode': 'random'
+        'id': None, 'title': f'Random Words ({lang}, {diff})',
+        'content': content, 'language': lang, 'difficulty': diff, 'mode': 'random'
     }
     return render_template('test.html', title='Случайные слова', text=text_obj)
 
-@main.route("/scoreboard")
+@app.route("/scoreboard")
 @login_required
 def scoreboard():
     results = Result.query.join(TestSession).join(User).order_by(Result.wpm.desc()).limit(50).all()
     return render_template('scoreboard.html', title='Таблица лидеров', results=results)
 
-@main.route("/profile")
+@app.route("/profile")
 @login_required
 def profile():
     user_results = Result.query.join(TestSession).filter(TestSession.user_id == current_user.id).all()
-    
     stats = db.session.query(
         func.avg(Result.wpm).label('avg_wpm'),
         func.max(Result.wpm).label('best_wpm'),
         func.count(Result.id).label('total_tests')
     ).join(TestSession).filter(TestSession.user_id == current_user.id).first()
-
     return render_template('profile.html', results=user_results, stats=stats)
 
-@main.route("/game")
+@app.route("/game")
 @login_required
 def game():
     return render_template('game.html', title='Игра "Падающие слова"')
 
-@main.route("/export_results")
+@app.route("/export_results")
 @login_required
 def export_results():
     si = StringIO()
     cw = csv.writer(si)
-    cw.writerow(['Дата', 'WPM', 'Точность %', 'Ошибки']) # Заголовки
-    
+    cw.writerow(['Дата', 'WPM', 'Точность %', 'Ошибки'])
     results = Result.query.join(TestSession).filter(TestSession.user_id == current_user.id).all()
     for r in results:
         cw.writerow([r.created_at.strftime('%Y-%m-%d %H:%M'), r.wpm, r.accuracy, r.errors_count])
-    
     output = si.getvalue()
-    return Response(
-        output,
-        mimetype="text/csv",
-        headers={"Content-disposition": "attachment; filename=my_results.csv"}
-    )
+    return Response(output, mimetype="text/csv",
+                    headers={"Content-disposition": "attachment; filename=my_results.csv"})

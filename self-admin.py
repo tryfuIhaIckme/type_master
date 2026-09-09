@@ -1,16 +1,24 @@
-"""Скрипт для назначения прав админа пользователю."""
-from run import create_app
-from app import db
+"""Скрипт для создания админа."""
+from app import app, db, bcrypt
 from app.models import User
 
-app = create_app()
-
 with app.app_context():
-    username = input("Введите имя пользователя: ").strip()
-    u = User.query.filter_by(username=username).first()
-    if u:
-        u.is_admin = True
+    # Удаляем старого админа если есть
+    admin = User.query.filter_by(username='nikolaev').first()
+    if admin:
+        db.session.delete(admin)
         db.session.commit()
-        print(f"Пользователь {u.username} теперь АДМИН!")
-    else:
-        print("Пользователь не найден!")
+        print("Старый админ удалён")
+    
+    # Создаём нового
+    admin = User(
+        username='nikolaev',
+        email='admin@typemaster.com',
+        is_admin=True
+    )
+    hashed_pw = bcrypt.generate_password_hash('nikolaev').decode('utf-8')
+    admin.password_hash = hashed_pw
+    db.session.add(admin)
+    db.session.commit()
+    print(f"Админ nikolaev создан с паролем 'nikolaev'")
+    print(f"Хеш: {hashed_pw}")
