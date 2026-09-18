@@ -14,8 +14,15 @@
         border-radius: 15px;
         position: relative;
         min-height: 200px;
+        transition: all 0.4s ease;
+    }
+    body.light-theme #text-display {
+        color: #b2bec3;
     }
     .char-correct { color: #e0e0e0; } /* Светлый для правильных */
+    body.light-theme .char-correct {
+        color: #2d3436;
+    }
     .char-incorrect { color: #e74c3c; background: rgba(231, 76, 60, 0.1); border-radius: 4px; } 
     .char-current { 
         border-bottom: 3px solid var(--accent);
@@ -36,6 +43,12 @@
         border-radius: 15px;
         border: 1px solid var(--border);
         text-align: center;
+        transition: all 0.4s ease;
+    }
+    body.light-theme .stat-box {
+        background: #ffffff;
+        border-color: #dfe6e9;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     }
 
     .stat-value {
@@ -178,7 +191,6 @@ function updateStats(charCount) {
     const now = new Date();
     const minutes = (now - startTime) / 60000;
     
-    // Формула WPM: (символы / 5) / минуты
     const wpm = Math.round((charCount / 5) / minutes) || 0;
     const accuracy = Math.round(((charCount - errorsCount) / charCount) * 100) || 100;
 
